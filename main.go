@@ -1,19 +1,32 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
-	"task-manager/handler"
-	"task-manager/manager"
+	"sync/atomic"
+	"task-manager/model"
+	"task-manager/scheduler"
+	"task-manager/worker"
 )
 
+var idCounter int64
+
 func main() {
-	taskManager := manager.NewTaskManager(3)
-	taskHandler := handler.NewTaskHandler(taskManager)
+	s := scheduler.NewScheduler()
 
-	http.HandleFunc("/tasks", taskHandler.CreateTask)
+	for i := 1; i <= 3; i++ {
+		worker.StartWorker(i, s.Tasks())
+	}
 
-	log.Println("Task Manager running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	s.Submit(&model.Task{
+		ID:       atomic.AddInt64(&idCounter, 1),
+		Name:     "Low priority",
+		Priority: 1,
+	})
+
+	s.Submit(&model.Task{
+		ID:       atomic.AddInt64(&idCounter, 1),
+		Name:     "High priority",
+		Priority: 10,
+	})
+
+	select {}
 }
